@@ -18,14 +18,65 @@
 
 from runner.koan import *
 
+
 class Proxy:
     def __init__(self, target_object):
         # WRITE CODE HERE
 
-        #initialize '_obj' attribute last. Trust me on this!
-        self._obj = target_object
+        # initialize '_obj' attribute last. Trust me on this!
+        object.__setattr__(self, "was_called_dict", {})
+        object.__setattr__(self, "times_called_dict", {})
+        object.__setattr__(self, "messages_list", [])
+        object.__setattr__(self, "_obj", target_object)
 
     # WRITE CODE HERE
+    def __setattr__(self, attr_name, value):
+        if (
+            (attr_name != "messages_list")
+            and (attr_name != "was_called_dict")
+            and (attr_name != "times_called_dict")
+        ):
+            object.__getattribute__(self, "was_called_dict")[attr_name] = True
+            try:
+                object.__getattribute__(self, "times_called_dict")[attr_name] += 1
+            except KeyError:
+                object.__getattribute__(self, "times_called_dict")[attr_name] = 1
+            object.__getattribute__(self, "messages_list").append(attr_name)
+            return setattr(object.__getattribute__(self, "_obj"), attr_name, value)
+        else:
+            return setattr(self, attr_name, value)
+
+    def __getattribute__(self, attr_name):
+        if (
+            (attr_name != "messages")
+            and (attr_name != "was_called")
+            and (attr_name != "number_of_times_called")
+        ):
+            object.__getattribute__(self, "was_called_dict")[attr_name] = True
+            try:
+                object.__getattribute__(self, "times_called_dict")[attr_name] += 1
+            except KeyError:
+                object.__getattribute__(self, "times_called_dict")[attr_name] = 1
+            object.__getattribute__(self, "messages_list").append(attr_name)
+            return getattr(object.__getattribute__(self, "_obj"), attr_name)
+        else:
+            return object.__getattribute__(self, attr_name)
+
+    def messages(self):
+        return object.__getattribute__(self, "messages_list")
+
+    def was_called(self, attr_name):
+        try:
+            return object.__getattribute__(self, "was_called_dict")[attr_name]
+        except KeyError:
+            return False
+
+    def number_of_times_called(self, attr_name):
+        try:
+            return object.__getattribute__(self, "times_called_dict")[attr_name]
+        except KeyError:
+            return 0
+
 
 # The proxy object should pass the following Koan:
 #
@@ -51,7 +102,7 @@ class AboutProxyObjectProject(Koan):
         tv.power()
         tv.channel = 10
 
-        self.assertEqual(['power', 'channel'], tv.messages())
+        self.assertEqual(["power", "channel"], tv.messages())
 
     def test_proxy_handles_invalid_messages(self):
         tv = Proxy(Television())
@@ -59,15 +110,14 @@ class AboutProxyObjectProject(Koan):
         with self.assertRaises(AttributeError):
             tv.no_such_method()
 
-
     def test_proxy_reports_methods_have_been_called(self):
         tv = Proxy(Television())
 
         tv.power()
         tv.power()
 
-        self.assertTrue(tv.was_called('power'))
-        self.assertFalse(tv.was_called('channel'))
+        self.assertTrue(tv.was_called("power"))
+        self.assertFalse(tv.was_called("channel"))
 
     def test_proxy_counts_method_calls(self):
         tv = Proxy(Television())
@@ -76,9 +126,9 @@ class AboutProxyObjectProject(Koan):
         tv.channel = 48
         tv.power()
 
-        self.assertEqual(2, tv.number_of_times_called('power'))
-        self.assertEqual(1, tv.number_of_times_called('channel'))
-        self.assertEqual(0, tv.number_of_times_called('is_on'))
+        self.assertEqual(2, tv.number_of_times_called("power"))
+        self.assertEqual(1, tv.number_of_times_called("channel"))
+        self.assertEqual(0, tv.number_of_times_called("is_on"))
 
     def test_proxy_can_record_more_than_just_tv_objects(self):
         proxy = Proxy("Py Ohio 2010")
@@ -90,7 +140,8 @@ class AboutProxyObjectProject(Koan):
         result = proxy.split()
 
         self.assertEqual(["Py", "Ohio", "2010"], result)
-        self.assertEqual(['upper', 'split'], proxy.messages())
+        self.assertEqual(["upper", "split"], proxy.messages())
+
 
 # ====================================================================
 # The following code is to support the testing of the Proxy class.  No
@@ -111,13 +162,14 @@ class Television:
         self._channel = value
 
     def power(self):
-        if self._power == 'on':
-            self._power = 'off'
+        if self._power == "on":
+            self._power = "off"
         else:
-            self._power = 'on'
+            self._power = "on"
 
     def is_on(self):
-        return self._power == 'on'
+        return self._power == "on"
+
 
 # Tests for the Television class.  All of theses tests should pass.
 class TelevisionTest(Koan):
